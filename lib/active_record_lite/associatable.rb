@@ -28,10 +28,11 @@ class BelongsToAssocParams < AssocParams
     @primary_key ||= :id
 
     @foreign_key = params[:foreign_key]
-    @foreign_key ||= "#{name}_id"
+    @foreign_key ||= "#{name}_id".to_sym
   end
 
   def type
+    :belongs_to
   end
 end
 
@@ -48,10 +49,11 @@ class HasManyAssocParams < AssocParams
     @primary_key ||= :id
 
     @foreign_key = params[:foreign_key]
-    @foreign_key ||= "#{self_class.to_s.snake_case}_id"
+    @foreign_key ||= "#{self_class.to_s.snake_case}_id".to_sym
   end
 
   def type
+    :has_many
   end
 end
 
@@ -67,7 +69,7 @@ module Associatable
     p = assoc_params(name)
 
     # e.g. post.author
-    define_method(p.other_class_name.underscore.downcase) do
+    define_method(name) do
       other_table = p.other_table_name
       table = self.class.table_name
       primary_key = p.primary_key.to_s
@@ -80,9 +82,9 @@ module Associatable
       p self_id
       puts "test--"
       p self.class.assoc_params(name).primary_key.to_s
-      rows = DBConnection.execute(<<-SQL)
+      rows = DBConnection.execute(<<-SQL, self.send(p.foreign_key))
       SELECT * FROM #{other_table} 
-      WHERE #{primary_key} = #{self_id}
+      WHERE #{primary_key} = ?
       SQL
 
       p rows
@@ -90,7 +92,7 @@ module Associatable
     end
 
     #e.g. post.author=(author)
-    define_method("#{p.other_class_name.underscore.downcase}=") do |arg|
+    define_method("#{name}=") do |arg|
       DBConnection.execute(<<-SQL, p.table_name, p.foreign_key.to_s, arg)
       UPDATE ? SET ? = ?
       SQL
@@ -110,11 +112,11 @@ module Associatable
     @assoc_params ||= {}
     p = HasManyAssocParams.new(name, params, self)
     @assoc_params[name.to_sym] = p
-    puts "has_many"
-p p.foreign_key.to_s
-p p.primary_key
-p self
-p self.class
+#     puts "has_many"
+# p p.foreign_key.to_s
+# p p.primary_key
+# p self
+# p self.class
     #e.g. user.posts
     define_method(p.other_class_name.underscore.downcase.pluralize) do 
       p "user.posts"
@@ -149,5 +151,33 @@ p self.class
   end
 
   def has_one_through(name, assoc1, assoc2)
+puts "has_one_through #{name} #{assoc1} #{assoc2}"
+    # @assoc_params ||= {}
+    # @assoc_params[assoc1] = BelongsToAssocParams.new(name, assoc_params(assoc2))
+    # p = assoc_params(name)
+
+    #e.g. cat.house (cat belongs to human belongs to house)
+    define_method(name) do 
+      p1 = self.class.assoc_params(assoc1)
+      p2 = p1.other_class.assoc_params(assoc2)
+# p "has_one_through"
+# p p1
+# p p2
+# p p1.other_table_name
+# p p2.other_table_name
+# p "SELECT #{p2.other_table_name}.* FROM #{p1.other_table_name} JOIN #{p2.other_table_name}"
+# p "ON #{p1.other_table_name}.#{p2.foreign_key} = #{p2.other_table_name}.#{p2.primary_key}"
+# p "WHERE #{p1.other_table_name}.#{p1.primary_key} = #{self.send(p1.foreign_key)}"
+      rows = DBConnection.execute(<<-SQL, self.send(p1.foreign_key))
+      SELECT #{p2.other_table_name}.* FROM #{p1.other_table_name} JOIN #{p2.other_table_name}
+      ON #{p1.other_table_name}.#{p2.foreign_key} = #{p2.other_table_name}.#{p2.primary_key}
+      WHERE #{p1.other_table_name}.#{p1.primary_key} = ?
+      SQL
+      
+      p rows
+      return nil if rows.empty?
+      p2.other_class.new rows.first
+    end
+
   end
 end
