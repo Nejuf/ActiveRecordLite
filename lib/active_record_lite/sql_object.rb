@@ -24,9 +24,7 @@ class SQLObject < MassObject
     SELECT * FROM #{table_name}
     SQL
 
-    rows.map do |row|
-      new(row)
-    end
+    parse_all(rows)
   end
 
   def self.find(id)
@@ -36,7 +34,7 @@ class SQLObject < MassObject
   end
 
   def save
-    if nil?
+    if id.nil?
       create
     else
       update
@@ -53,7 +51,7 @@ private
     INSERT INTO #{self.class.table_name} ? VALUES #{q_marks}
     SQL
 
-    self.class.find(DBConnection.last_insert_row_id)
+    self.id = DBConnection.last_insert_row_id
   end
 
   def update
@@ -66,12 +64,10 @@ private
     DBConnection.execute(<<-SQL, *arg_values, @id)
     UPDATE #{self.class.table_name} SET #{set_list} WHERE id = ?
     SQL
-    self.class.find(@id)
+    true
   end
 
   def attribute_values
-    self.class.attributes.map do |arg|
-      send(arg)
-    end
+    self.class.attributes.map{|arg| send(arg)}
   end
 end
