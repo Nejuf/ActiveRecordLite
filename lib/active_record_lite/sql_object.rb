@@ -30,9 +30,9 @@ class SQLObject < MassObject
   end
 
   def self.find(id)
-    rows = where({:id => id})
-    return nil if rows.empty?
-    new rows.first
+    results = where({:id => id})
+    return nil if results.empty?
+    results.first
   end
 
   def save
