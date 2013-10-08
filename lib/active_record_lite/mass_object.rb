@@ -1,8 +1,10 @@
 class MassObject
   def self.my_attr_accessible(*attributes)
-  	@attributes = attributes.map(&:to_sym)
-  	attributes.each do |attr|
-  		attr_accessor attr.to_sym
+    @attributes ||= []
+  	@attributes += attributes.map(&:to_sym)
+    @attributes.uniq!
+  	@attributes.each do |attr|
+  		attr_accessor attr
   	end
   end
 
@@ -11,7 +13,7 @@ class MassObject
   end
 
   def self.parse_all(results)
-    raise NotImplementedError
+    results.map{|result| self.new result}
   end
 
   def initialize(params = {})
