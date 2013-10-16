@@ -75,19 +75,12 @@ module Associatable
       primary_key = p.primary_key.to_s
       foreign_key = p.foreign_key.to_s
       self_id = self.send(p.foreign_key)
-      p other_table
-      p table
-      p primary_key
-      p foreign_key
-      p self_id
-      puts "test--"
-      p self.class.assoc_params(name).primary_key.to_s
+      
       rows = DBConnection.execute(<<-SQL, self.send(p.foreign_key))
       SELECT * FROM #{other_table} 
       WHERE #{primary_key} = ?
       SQL
 
-      p rows
       p.other_class.new rows.first
     end
 
@@ -119,9 +112,6 @@ module Associatable
 # p self.class
     #e.g. user.posts
     define_method(p.other_class_name.underscore.downcase.pluralize) do 
-      p "user.posts"
-      p self.send(p.primary_key)
-      p p.foreign_key.to_s
       # rows = DBConnection.execute(<<-SQL, p.foreign_key.to_s, self.send(p.primary_key))
       # SELECT * FROM #{p.other_table_name}
       # WHERE ? = ?
@@ -131,7 +121,6 @@ module Associatable
       WHERE #{p.foreign_key.to_s} = #{self.send(p.primary_key)}
       SQL
     
-      p rows
       return nil if rows.empty?
       rows.map { |row| p.other_class.new row }
     end
@@ -151,7 +140,6 @@ module Associatable
   end
 
   def has_one_through(name, assoc1, assoc2)
-puts "has_one_through #{name} #{assoc1} #{assoc2}"
     # @assoc_params ||= {}
     # @assoc_params[assoc1] = BelongsToAssocParams.new(name, assoc_params(assoc2))
     # p = assoc_params(name)
@@ -160,21 +148,13 @@ puts "has_one_through #{name} #{assoc1} #{assoc2}"
     define_method(name) do 
       p1 = self.class.assoc_params(assoc1)
       p2 = p1.other_class.assoc_params(assoc2)
-# p "has_one_through"
-# p p1
-# p p2
-# p p1.other_table_name
-# p p2.other_table_name
-# p "SELECT #{p2.other_table_name}.* FROM #{p1.other_table_name} JOIN #{p2.other_table_name}"
-# p "ON #{p1.other_table_name}.#{p2.foreign_key} = #{p2.other_table_name}.#{p2.primary_key}"
-# p "WHERE #{p1.other_table_name}.#{p1.primary_key} = #{self.send(p1.foreign_key)}"
+      
       rows = DBConnection.execute(<<-SQL, self.send(p1.foreign_key))
       SELECT #{p2.other_table_name}.* FROM #{p1.other_table_name} JOIN #{p2.other_table_name}
       ON #{p1.other_table_name}.#{p2.foreign_key} = #{p2.other_table_name}.#{p2.primary_key}
       WHERE #{p1.other_table_name}.#{p1.primary_key} = ?
       SQL
       
-      p rows
       return nil if rows.empty?
       p2.other_class.new rows.first
     end
