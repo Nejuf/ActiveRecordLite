@@ -62,27 +62,27 @@ module Associatable
   def belongs_to(name, params = {})
     @assoc_params ||= {}
     @assoc_params[name.to_sym] = BelongsToAssocParams.new(name, params)
-    p = assoc_params(name)
+    belongs_to_params = assoc_params(name)
 
     # e.g. post.author
     define_method(name) do
-      other_table = p.other_table_name
+      other_table = belongs_to_params.other_table_name
       table = self.class.table_name
-      primary_key = p.primary_key.to_s
-      foreign_key = p.foreign_key.to_s
-      self_id = self.send(p.foreign_key)
+      primary_key = belongs_to_params.primary_key.to_s
+      foreign_key = belongs_to_params.foreign_key.to_s
+      self_id = self.send(belongs_to_params.foreign_key)
 
-      rows = DBConnection.execute(<<-SQL, self.send(p.foreign_key))
+      rows = DBConnection.execute(<<-SQL, self.send(belongs_to_params.foreign_key))
       SELECT * FROM #{other_table}
       WHERE #{primary_key} = ?
       SQL
 
-      p.other_class.new rows.first
+      belongs_to_params.other_class.new rows.first
     end
 
     #e.g. post.author=(author)
     define_method("#{name}=") do |arg|
-      DBConnection.execute(<<-SQL, p.table_name, p.foreign_key.to_s, arg)
+      DBConnection.execute(<<-SQL, belongs_to_params.table_name, belongs_to_params.foreign_key.to_s, arg)
       UPDATE ? SET ? = ?
       SQL
     end
@@ -94,7 +94,7 @@ module Associatable
     #e.g. post.create_author!
 
     #parse all
-    #p.other_class.parse_all().first
+    #belongs_to_params.other_class.parse_all().first
   end
 
   def has_many(name, params = {})
@@ -102,18 +102,18 @@ module Associatable
     has_many_params = HasManyAssocParams.new(name, params, self)
     @assoc_params[name.to_sym] = has_many_params
 
-    define_method(p.other_class_name.underscore.downcase.pluralize) do
-      # rows = DBConnection.execute(<<-SQL, p.foreign_key.to_s, self.send(p.primary_key))
-      # SELECT * FROM #{p.other_table_name}
+    define_method(has_many_params.other_class_name.underscore.downcase.pluralize) do
+      # rows = DBConnection.execute(<<-SQL, has_many_params.foreign_key.to_s, self.send(has_many_params.primary_key))
+      # SELECT * FROM #{has_many_params.other_table_name}
       # WHERE ? = ?
       # SQL
       rows = DBConnection.execute(<<-SQL)
-      SELECT * FROM #{p.other_table_name}
-      WHERE #{p.foreign_key.to_s} = #{self.send(p.primary_key)}
+      SELECT * FROM #{has_many_params.other_table_name}
+      WHERE #{has_many_params.foreign_key.to_s} = #{self.send(has_many_params.primary_key)}
       SQL
 
       return nil if rows.empty?
-      rows.map { |row| p.other_class.new row }
+      rows.map { |row| has_many_params.other_class.new row }
     end
 
     #e.g. user.posts<<
